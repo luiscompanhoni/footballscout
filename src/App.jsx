@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import Header from './Header';
-import Sidebar from './Sidebar';
-import Dashboard from './Dashboard';
-import GlobalRanking from './GlobalRanking';
-import ContinentalRanking from './ContinentalRanking';
-import LeagueRanking from './LeagueRanking';
-import PlayerProfile from './PlayerProfile';
+import Header from '../Header';
+import Sidebar from '../Sidebar';
+import Dashboard from '../Dashboard';
+import GlobalRanking from '../GlobalRanking';
+import ContinentalRanking from '../ContinentalRanking';
+import LeagueRanking from '../LeagueRanking';
+import PlayerProfile from '../PlayerProfile';
 
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
