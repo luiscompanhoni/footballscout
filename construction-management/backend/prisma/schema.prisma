@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENTE
+}
+
+enum StatusObra {
+  PLANEJAMENTO
+  EM_ANDAMENTO
+  PARALISADA
+  CONCLUIDA
+}
+
+enum StatusOrcamento {
+  PENDENTE
+  APROVADO
+  REPROVADO
+}
+
+enum CategoriasDespesa {
+  MAO_DE_OBRA
+  MATERIAIS
+  EQUIPAMENTOS
+  OUTROS
+}
+
+model Usuario {
+  id                String    @id @default(uuid())
+  nome              String
+  email             String    @unique
+  senhaHash         String
+  role              Role      @default(CLIENTE)
+  tokenRecuperacao  String?
+  tokenExpiracao    DateTime?
+  fcmToken          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  obras             Obra[]          @relation("ClienteObras")
+  notificacoes      Notificacao[]
+
+  @@map("usuarios")
+}
+
+model Obra {
+  id                String     @id @default(uuid())
+  nome              String
+  endereco          String
+  descricao         String?
+  status            StatusObra @default(PLANEJAMENTO)
+  dataInicio        DateTime
+  dataPrevisaoFim   DateTime
+  dataFimReal       DateTime?
+  orcamentoPrevisto Float      @default(0)
+  clienteId         String
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  cliente           Usuario         @relation("ClienteObras", fields: [clienteId], references: [id])
+  etapas            Etapa[]
+  despesas          Despesa[]
+  orcamentos        Orcamento[]
+  profissionaisObra ProfissionalObra[]
+  materiais         Material[]
+  diarioEntradas    DiarioEntrada[]
+
+  @@map("obras")
+}
+
+model Etapa {
+  id              String   @id @default(uuid())
+  nome            String
+  descricao       String?
+  ordem           Int
+  percentualPrev  Float    @default(0)
+  percentualReal  Float    @default(0)
+  dataInicio      DateTime?
+  dataFim         DateTime?
+  obraId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  obra            Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("etapas")
+}
+
+model Orcamento {
+  id            String          @id @default(uuid())
+  titulo        String
+  descricao     String?
+  valor         Float
+  status        StatusOrcamento @default(PENDENTE)
+  justificativa String?
+  obraId        String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  obra          Obra            @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  itens         ItemOrcamento[]
+
+  @@map("orcamentos")
+}
+
+model ItemOrcamento {
+  id          String   @id @default(uuid())
+  descricao   String
+  quantidade  Float
+  valorUnit   Float
+  orcamentoId String
+
+  orcamento   Orcamento @relation(fields: [orcamentoId], references: [id], onDelete: Cascade)
+
+  @@map("itens_orcamento")
+}
+
+model Despesa {
+  id          String             @id @default(uuid())
+  descricao   String
+  categoria   CategoriasDespesa
+  valor       Float
+  data        DateTime
+  fornecedor  String?
+  notaFiscal  String?
+  obraId      String
+  createdAt   DateTime           @default(now())
+
+  obra        Obra               @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("despesas")
+}
+
+model Profissional {
+  id        String   @id @default(uuid())
+  nome      String
+  funcao    String
+  telefone  String?
+  email     String?
+  cpf       String?  @unique
+  valorDia  Float?
+  valorHora Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  obras     ProfissionalObra[]
+
+  @@map("profissionais")
+}
+
+model ProfissionalObra {
+  id             String   @id @default(uuid())
+  obraId         String
+  profissionalId String
+  dataEntrada    DateTime @default(now())
+  dataSaida      DateTime?
+
+  obra           Obra         @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  profissional   Profissional @relation(fields: [profissionalId], references: [id])
+  registrosHoras RegistroHoras[]
+
+  @@unique([obraId, profissionalId])
+  @@map("profissionais_obras")
+}
+
+model RegistroHoras {
+  id                 String           @id @default(uuid())
+  data               DateTime
+  horasTrabalhadas   Float
+  valorTotal         Float
+  observacao         String?
+  profissionalObraId String
+
+  profissionalObra   ProfissionalObra @relation(fields: [profissionalObraId], references: [id], onDelete: Cascade)
+
+  @@map("registros_horas")
+}
+
+model Material {
+  id                String   @id @default(uuid())
+  nome              String
+  unidade           String
+  quantSolicitada   Float    @default(0)
+  quantRecebida     Float    @default(0)
+  quantUtilizada    Float    @default(0)
+  obraId            String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  obra              Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  compras           ComprasMaterial[]
+
+  @@map("materiais")
+}
+
+model ComprasMaterial {
+  id          String   @id @default(uuid())
+  materialId  String
+  quantidade  Float
+  valorUnit   Float
+  valorTotal  Float
+  fornecedor  String
+  data        DateTime
+  notaFiscal  String?
+  createdAt   DateTime @default(now())
+
+  material    Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@map("compras_material")
+}
+
+model DiarioEntrada {
+  id        String   @id @default(uuid())
+  titulo    String
+  descricao String
+  fotos     String[]
+  obraId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  obra      Obra     @relation(fields: [obraId], references: [id], onDelete: Cascade)
+
+  @@map("diario_entradas")
+}
+
+model Notificacao {
+  id        String   @id @default(uuid())
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  usuarioId String
+  obraId    String?
+  tipo      String
+  createdAt DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("notificacoes")
+}
